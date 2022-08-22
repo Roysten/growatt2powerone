@@ -222,6 +222,12 @@ constexpr byte get_data_len(Read_cmd cmd)
 	}
 }
 
+void clear_rx_buf() {
+	while (serial.available()) {
+		(void) serial.read();
+	}
+}
+
 void send_request(Read_cmd cmd)
 {
 	static const auto PAYLOAD_LEN = 6u;

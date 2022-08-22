@@ -24,6 +24,7 @@ bool Cache::update()
 	auto now = millis();
 	if (now - response_timestamp > MAX_CACHE_AGE || response_timestamp == 0) {
 		byte msg_buf[POWER_MSG_LEN] = {};
+		growatt::clear_rx_buf();
 		growatt::send_request(Read_cmd::READ_POWER);
 		if (!growatt::recv_response(msg_buf, POWER_MSG_LEN, RESPONSE_TIMEOUT)) {
 			return false;
@@ -34,6 +35,7 @@ bool Cache::update()
 			return false;
 		}
 
+		growatt::clear_rx_buf();
 		growatt::send_request(Read_cmd::READ_ENERGY);
 		if (!growatt::recv_response(msg_buf, ENERGY_MSG_LEN, RESPONSE_TIMEOUT)) {
 			return false;

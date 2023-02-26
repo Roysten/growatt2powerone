@@ -29,7 +29,7 @@ uint16_t calculate_checksum(byte* data, size_t len)
 	byte bcc_lo = 0xFF;
 	byte bcc_hi = 0xFF;
 	for (size_t i = 0; i < len; ++i) {
-		byte vnew = data[i] ^ bcc_lo;	
+		byte vnew = data[i] ^ bcc_lo;
 		byte tmp = vnew << 4;
 		vnew = tmp ^ vnew;
 		tmp = vnew >> 5;
@@ -44,8 +44,15 @@ uint16_t calculate_checksum(byte* data, size_t len)
 	return ((~bcc_hi) << 8) | byte(~bcc_lo);
 }
 
+void clear_rx_buf() {
+	while (serial.available()) {
+		(void) serial.read();
+	}
+}
+
 bool recv_request(byte* dest)
 {
+	clear_rx_buf();
 	size_t bytes_received = 0;
 	while (bytes_received < MSG_LEN) {
 		auto byte_read = serial.read();
@@ -72,12 +79,14 @@ bool recv_request(byte* dest)
 Global_state get_global_state(const growatt::Read_power_response& growatt_power_data)
 {
 	switch (growatt_power_data.inverter_status) {
-		case growatt::Inverter_status::WAITING:	
+		case growatt::Inverter_status::WAITING:
 			return Global_state::WAIT_SUN_GRID;
 		case growatt::Inverter_status::NORMAL:
 			return Global_state::RUN;
 		case growatt::Inverter_status::FAULT:
 			return Global_state::INTERNAL_ERROR_E026;
+		default:
+			return Global_state::WAIT_SUN_GRID;
 	}
 }
 
@@ -102,7 +111,7 @@ void send_state_response(const growatt::Read_power_response& growatt_power_data)
 	Alarm_state alarm_state{};
 
 	switch (growatt_power_data.inverter_status) {
-		case growatt::Inverter_status::WAITING:	
+		case growatt::Inverter_status::WAITING:
 			dcdc1_state = Dc_dc_state::OFF;
 			dcdc2_state = Dc_dc_state::OFF;
 			inverter_state = Inverter_state::STANDBY;
@@ -223,7 +232,7 @@ void send_measure_dsp_response(Measure_dsp_type type, const growatt::Read_power_
 			break;
 	}
 
-	char* val_ptr = reinterpret_cast<byte*>(&val);
+	auto val_ptr = reinterpret_cast<byte*>(&val);
 	byte msg_buf[RESPONSE_MSG_LEN] = {
 		Transmission_state::OK,
 		byte(get_global_state(growatt_power_data)),
@@ -243,7 +252,7 @@ void send_cumulative_energy_response(Cumulative_energy_read_type type,
 
 	// Growatt uses fixed point kWh, but PowerOne expects Wh floats
 	float val = growatt_energy_data.energy_total * 100.0;
-	char* val_ptr = reinterpret_cast<byte*>(&val);
+	auto val_ptr = reinterpret_cast<byte*>(&val);
 	byte msg_buf[RESPONSE_MSG_LEN] = {
 		Transmission_state::OK,
 		byte(get_global_state(growatt_power_data)),

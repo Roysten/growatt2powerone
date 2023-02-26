@@ -24,10 +24,26 @@ enum class Inverter_status : byte
 {
 	WAITING = 0,
 	NORMAL = 1,
-	FAULT = 2,	
+	FAULT = 2,
 };
 
-uint16_t calculate_checksum(byte* data, size_t len)
+static const byte* extract_big_endian(const byte* bytes, Inverter_status* field)
+{
+	*field = Inverter_status(bytes[0]);
+	return bytes + 1;
+}
+
+template <typename T>
+static const byte* extract_big_endian(const byte* bytes, T* field)
+{
+	auto byte_count = sizeof(*field);
+	for (size_t i = 0; i < byte_count; ++i) {
+		*field |= T(bytes[i]) << ((byte_count - 1 - i) * 8);
+	}
+	return bytes + byte_count;
+}
+
+static uint16_t calculate_checksum(const byte* data, size_t len)
 {
 	uint32_t sum = 0;
 	for (size_t i = 0; i < len; ++i) {
@@ -41,18 +57,18 @@ uint16_t calculate_checksum(byte* data, size_t len)
 	return sum;
 }
 
-static bool has_valid_checksum(byte* data, size_t len) {
+static bool has_valid_checksum(const byte* data, size_t len) {
 	if (len < 2) {
 		return false;
 	}
-	
+
 	uint16_t checksum = (data[len - 2] << 8) | data[len - 1];
 	return checksum == calculate_checksum(data, len - 2);
 }
 
 struct Read_power_response
 {
-	Inverter_status inverter_status{};	
+	Inverter_status inverter_status{};
 	uint16_t input_voltage_tracker_1{}; /* Fixed point, 10 */
 	uint16_t input_voltage_tracker_2{}; /* Fixed point, 10 */
 	uint16_t input_power{}; /* Fixed point, 10 */
@@ -70,30 +86,30 @@ struct Read_power_response
 	uint16_t fault_type{};
 	uint16_t temperature{};
 
-	static bool from_bytes(Read_power_response& dest, byte* bytes)
+	static bool from_bytes(Read_power_response& dest, const byte* bytes)
 	{
 		if (!has_valid_checksum(bytes, POWER_MSG_LEN)) {
 			return false;
 		}
 
-		size_t offset = 6;
-		dest.inverter_status = Inverter_status(bytes[offset]);
-		dest.input_voltage_tracker_1 = (bytes[++offset] << 8) | bytes[++offset];
-		dest.input_voltage_tracker_2 = (bytes[++offset] << 8) | bytes[++offset];
-		dest.input_power = (bytes[++offset] << 8) | bytes[++offset];
-		dest.grid_voltage = (bytes[++offset] << 8) | bytes[++offset];
-		dest.grid_amperage = (bytes[++offset] << 8) | bytes[++offset];
-		dest.grid_frequency = (bytes[++offset] << 8) | bytes[++offset];
-		dest.output_power = (bytes[++offset] << 8) | bytes[++offset];
-		dest.isolation_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.ground_fault_circuit_interrupter_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.dc_current_injection_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.input_voltage_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.grid_voltage_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.grid_voltage_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.temperature_fault_code = (bytes[++offset] << 8) | bytes[++offset];
-		dest.fault_type = (bytes[++offset] << 8) | bytes[++offset];
-		dest.temperature = (bytes[++offset] << 8) | bytes[++offset];
+		bytes += 6;
+		bytes = extract_big_endian(bytes, &dest.inverter_status);
+		bytes = extract_big_endian(bytes, &dest.input_voltage_tracker_1);
+		bytes = extract_big_endian(bytes, &dest.input_voltage_tracker_2);
+		bytes = extract_big_endian(bytes, &dest.input_power);
+		bytes = extract_big_endian(bytes, &dest.grid_voltage);
+		bytes = extract_big_endian(bytes, &dest.grid_amperage);
+		bytes = extract_big_endian(bytes, &dest.grid_frequency);
+		bytes = extract_big_endian(bytes, &dest.output_power);
+		bytes = extract_big_endian(bytes, &dest.isolation_fault_code);
+		bytes = extract_big_endian(bytes, &dest.ground_fault_circuit_interrupter_fault_code);
+		bytes = extract_big_endian(bytes, &dest.dc_current_injection_fault_code);
+		bytes = extract_big_endian(bytes, &dest.input_voltage_fault_code);
+		bytes = extract_big_endian(bytes, &dest.grid_voltage_fault_code);
+		bytes = extract_big_endian(bytes, &dest.grid_frequency_fault_code);
+		bytes = extract_big_endian(bytes, &dest.temperature_fault_code);
+		bytes = extract_big_endian(bytes, &dest.fault_type);
+		bytes = extract_big_endian(bytes, &dest.temperature);
 		return true;
 	}
 
@@ -121,18 +137,16 @@ struct Read_energy_response
 	uint32_t energy_total{}; /* Fixed point, 10 */
 	uint32_t time_total_hours{};
 
-	static bool from_bytes(Read_energy_response& dest, byte* bytes)
+	static bool from_bytes(Read_energy_response& dest, const byte* bytes)
 	{
 		if (!has_valid_checksum(bytes, ENERGY_MSG_LEN)) {
 			return false;
 		}
 
-		size_t offset = 6;
-		dest.energy_today = (bytes[++offset] << 8) | bytes[++offset];
-		dest.energy_total = (bytes[++offset] << 24) | (bytes[++offset] << 16)
-			| (bytes[++offset]) << 8 | bytes[++offset];
-		dest.time_total_hours = (bytes[++offset] << 24) | (bytes[++offset] << 16)
-			| (bytes[++offset]) << 8 | bytes[++offset];
+		bytes += 6 + 7;
+		bytes = extract_big_endian(bytes, &dest.energy_today);
+		bytes = extract_big_endian(bytes, &dest.energy_total);
+		bytes = extract_big_endian(bytes, &dest.time_total_hours);
 		return true;
 	}
 };
@@ -144,18 +158,17 @@ struct Read_spec_response
 	uint16_t model{};
 	uint8_t firmware_version{};
 
-	static bool from_bytes(Read_spec_response& dest, byte* bytes)
+	static bool from_bytes(Read_spec_response& dest, const byte* bytes)
 	{
 		if (!has_valid_checksum(bytes, SPEC_MSG_LEN)) {
 			return false;
 		}
 
-		size_t offset = 0;
-		dest.p_max = (bytes[++offset] << 24) | (bytes[++offset] << 16)
-			| (bytes[++offset] << 8) | bytes[++offset];
-		dest.vdc_nor = (bytes[++offset] << 8) | bytes[++offset];
-		dest.model = (bytes[++offset] << 8) | bytes[++offset];
-		dest.firmware_version = bytes[++offset];
+		bytes += 6 + 1;
+		bytes = extract_big_endian(bytes, &dest.p_max);
+		bytes = extract_big_endian(bytes, &dest.vdc_nor);
+		bytes = extract_big_endian(bytes, &dest.model);
+		bytes = extract_big_endian(bytes, &dest.firmware_version);
 		return true;
 	}
 };
@@ -172,22 +185,22 @@ struct Read_settings_response
 	uint16_t fac_high{}; /* Fixed point, 100 */
 	uint16_t model{};
 
-	static bool from_bytes(Read_settings_response& dest, byte* bytes)
+	static bool from_bytes(Read_settings_response& dest, const byte* bytes)
 	{
 		if (!has_valid_checksum(bytes, SETTINGS_MSG_LEN)) {
 			return false;
 		}
 
-		size_t offset = 1;
-		dest.lcd_language = bytes[++offset];
-		dest.lcd_contrast = bytes[++offset];
-		dest.vpv_start = (bytes[++offset] << 8) | bytes[++offset];
-		dest.time_start = (bytes[++offset] << 8) | bytes[++offset];
-		dest.vac_low = (bytes[++offset] << 8) | bytes[++offset];
-		dest.vac_high = (bytes[++offset] << 8) | bytes[++offset];
-		dest.fac_low = (bytes[++offset] << 8) | bytes[++offset];
-		dest.fac_high = (bytes[++offset] << 8) | bytes[++offset];
-		dest.model = (bytes[++offset] << 8) | bytes[++offset];
+		bytes += 6 + 1;
+		bytes = extract_big_endian(bytes, &dest.lcd_language);
+		bytes = extract_big_endian(bytes, &dest.lcd_contrast);
+		bytes = extract_big_endian(bytes, &dest.vpv_start);
+		bytes = extract_big_endian(bytes, &dest.time_start);
+		bytes = extract_big_endian(bytes, &dest.vac_low);
+		bytes = extract_big_endian(bytes, &dest.vac_high);
+		bytes = extract_big_endian(bytes, &dest.fac_low);
+		bytes = extract_big_endian(bytes, &dest.fac_high);
+		bytes = extract_big_endian(bytes, &dest.model);
 
 		return true;
 	}
@@ -195,13 +208,13 @@ struct Read_settings_response
 
 struct Serial_number
 {
-	static bool from_bytes(byte* bytes, uint32_t *dest)
+	static bool from_bytes(const byte* bytes, uint32_t *dest)
 	{
 		if (!has_valid_checksum(bytes, SN_MSG_LEN)) {
 			return false;
 		}
 
-		*dest = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+		extract_big_endian(bytes, dest);
 		return true;
 	}
 };
@@ -244,7 +257,7 @@ void send_request(Read_cmd cmd)
 	cmd_buf[PAYLOAD_LEN + 1] = checksum;
 
 	serial.write(cmd_buf, sizeof(cmd_buf));
-	serial.flush();	
+	serial.flush();
 }
 
 bool recv_response(byte* dest, size_t len, unsigned long timeout)

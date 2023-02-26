@@ -16,17 +16,18 @@ void loop() {
 	byte msg_buf[powerone::MSG_LEN] = {};
 	auto msg_ok = powerone::recv_request(msg_buf);
 	if (!msg_ok) {
+		Serial.println("E: Powerone");
 		return;
 	}
 
 	if (!growatt_cache.update()) {
-		Serial.println("Growatt error");
+		Serial.println("E: Growatt");
 		return;
 	}
 
 	auto request_type = msg_buf[powerone::OFFSET_MSG_TYPE];
-	Serial.print("Request type: ");
-	Serial.println(powerone::to_string(request_type));
+	Serial.print("Rq type: ");
+	Serial.println(powerone::to_string(static_cast<powerone::Read_cmd>(request_type)));
 	switch (request_type) {
 		case powerone::Read_cmd::STATE:
 			powerone::send_state_response(growatt_cache.power_data);

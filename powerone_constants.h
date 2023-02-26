@@ -10,7 +10,7 @@ enum Transmission_state : byte
 	VARIABLE_DOES_NOT_EXIST = 52,
 	VARIABLE_OUT_OF_RANGE = 53,
 	EEPROM_NOT_ACCESSIBLE = 54,
-	NOT_TOGGLED_SERVICE_MODE = 55, 
+	NOT_TOGGLED_SERVICE_MODE = 55,
 	CANNOT_SEND_COMMAND_TO_INTERNAL_MICRO = 56,
 	COMMAND_NOT_EXECUTED = 57,
 	VARIABLE_NOT_AVAILABLE_RETRY = 58,
@@ -388,6 +388,8 @@ Measure_dsp_type measure_dsp_type_from_byte(byte val) {
 			return Measure_dsp_type::GRID_VOLTAGE_PHASE_S;
 		case byte(Measure_dsp_type::GRID_VOLTAGE_PHASE_T):
 			return Measure_dsp_type::GRID_VOLTAGE_PHASE_T;
+		default:
+			return Measure_dsp_type::GRID_VOLTAGE;
 	}
 }
 
@@ -421,17 +423,17 @@ const char* to_string(Read_cmd cmd)
 		case LAST_FOUR_ALARMS:
 			return "LAST_FOUR_ALARMS";
 		case AURORA_CENTRAL_SYSTEM_INFO:
-			return "AURORA_CENTRAL_SYSTEM_INFO ";
+			return "AURORA_CENTRAL_SYSTEM_INFO";
 		case AURORA_CENTRAL_JUNCTION_BOX:
-			return "AURORA_CENTRAL_JUNCTION_BOX ";
+			return "AURORA_CENTRAL_JUNCTION_BOX";
 		case AURORA_CENTRAL_SYSTEM_PN:
-			return "AURORA_CENTRAL_SYSTEM_PN ";
+			return "AURORA_CENTRAL_SYSTEM_PN";
 		case AURORA_CENTRAL_SYSTEM_SERIAL_NUMBER:
-			return "AURORA_CENTRAL_SYSTEM_SERIAL_NUMBER ";
+			return "AURORA_CENTRAL_SYSTEM_SERIAL_NUMBER";
 		case JUNCTION_BOX_STATE:
-			return "JUNCTION_BOX_STATE ";
+			return "JUNCTION_BOX_STATE";
 		case JUNCTION_BOX_VAL:
-			return "JUNCTION_BOX_VAL ";
+			return "JUNCTION_BOX_VAL";
 	}
 	return "UNKNOWN";
 }
@@ -450,6 +452,8 @@ Cumulative_energy_read_type cumulative_energy_read_type_from_byte(byte val) {
 			return Cumulative_energy_read_type::TOTAL;
 		case byte(Cumulative_energy_read_type::PARTIAL):
 			return Cumulative_energy_read_type::PARTIAL;
+		default:
+			return Cumulative_energy_read_type::DAY;
 	}
 }
 

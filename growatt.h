@@ -37,6 +37,7 @@ template <typename T>
 static const byte* extract_big_endian(const byte* bytes, T* field)
 {
 	auto byte_count = sizeof(*field);
+	*field = 0;
 	for (size_t i = 0; i < byte_count; ++i) {
 		*field |= T(bytes[i]) << ((byte_count - 1 - i) * 8);
 	}
